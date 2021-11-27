@@ -1,4 +1,4 @@
-# To use run: python venmo_statement.py --output output.md venmo_statement.csv
+# To use run: python venmo_statement.py --output output.csv venmo_statement.csv
 
 import pandas as pd
 import click
@@ -33,6 +33,8 @@ def main(filepath, output=None):
 
     general_ledger = df[['Datetime', 'Type', 'From', 'To', 'Note', 'Funding Source', 'Amount (total)']].fillna('')
     general_ledger = general_ledger.drop(0) # drop the beginning balance row
+    # set datetime to datetime
+    general_ledger['Datetime'] = pd.to_datetime(general_ledger['Datetime'])
 
     def build_description(row):
         if pd.isnull(row['From']) and pd.isnull(row['To']):
@@ -44,7 +46,9 @@ def main(filepath, output=None):
         return f"{row['From']} -> {row['To']}: {row['Note']}"
 
     general_ledger['Description'] = df.apply(lambda row: build_description(row), axis=1)
-    general_ledger = general_ledger.drop(labels=['Note', 'From', 'To'], axis='columns')
+    # general_ledger = general_ledger.drop(labels=['Note', 'From', 'To'], axis='columns')
+    # rename columns
+    general_ledger = general_ledger.rename(columns={'Note': 'Memo'})
 
 
     # remove credit card entries
@@ -87,6 +91,13 @@ def main(filepath, output=None):
     click.echo(f'Total Credits:      $ {total_credits:>8.2f}')
     click.echo(f'Ending Balance:     $ {ending_balance:>8.2f}')
     click.echo()
+
+    # create new column for sum of credits and debits
+    # prep for YNAB
+    general_ledger['Amount'] = -general_ledger.Debit + general_ledger.Credit
+    # convert datetime to date
+    general_ledger['Date'] = general_ledger.Datetime.dt.date
+    general_ledger.to_csv(output, index=False)
 
 
     # TODO: read crypto summary
